@@ -1,106 +1,124 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#define maxsize 10
-typedef struct linked_list{
-    char data[5];
-    int link;
-}linked_list;
 
-void initialize_the_array(linked_list[]);
-void add_next_name(char*,linked_list[],int*,int*);
-void delete_item(linked_list[],char*,int*,int*);
-void display(linked_list[]);
-void sort(int [], int);
-void swap(int *, int *);
+typedef struct matrix{
+    int rows;
+    int columns;
+    int **map;
+} matrix;
 
-int main() {
-    linked_list array_of_names[maxsize];
-    int next_empty_location=0;
-    int arr[7]={23,2,4,0,1,43,10};
-    int real_array_starting_index=-1;
-    sort(arr,7);
-    initialize_the_array(array_of_names);
-    add_next_name("okan",array_of_names,&next_empty_location,&real_array_starting_index);
-    display(array_of_names);
-    printf("empty_location: %d------ array_starting_index: %d\n",next_empty_location,real_array_starting_index);
+void Matrix_reader(char *,matrix*);
+void Free_Allocation(matrix*,matrix*);
+void Matrixes_Boundaries(char *,char*,matrix*,matrix*);
+void Treasure_Searcher(matrix*,matrix*,int,int,int,int,int,FILE*);
 
-    add_next_name("muge",array_of_names,&next_empty_location,&real_array_starting_index);
-    display(array_of_names);
-    printf("empty_location: %d------ array_starting_index: %d\n",next_empty_location,real_array_starting_index);
+int main(int argc, char *argv[]) {
+    matrix main_matrix,key_matrix;
+    FILE *outputfp=fopen(argv[5],"w");
+    Matrixes_Boundaries(argv[1],argv[2],&main_matrix,&key_matrix);
 
-    add_next_name("ugur",array_of_names,&next_empty_location,&real_array_starting_index);
-    display(array_of_names);
-    printf("empty_location: %d------ array_starting_index: %d\n",next_empty_location,real_array_starting_index);
 
-    add_next_name("nila",array_of_names,&next_empty_location,&real_array_starting_index);
-    display(array_of_names);
-    printf("empty_location: %d------ array_starting_index: %d\n",next_empty_location,real_array_starting_index);
+    Matrix_reader(argv[3],&main_matrix);
+    Matrix_reader(argv[4],&key_matrix);
 
-    delete_item(array_of_names,"muge",&next_empty_location,&real_array_starting_index);
-    display(array_of_names);
-    printf("empty_location: %d------ array_starting_index: %d\n",next_empty_location,real_array_starting_index);
-
+    Treasure_Searcher(&main_matrix,&key_matrix,0,key_matrix.rows,0,key_matrix.columns,-1,outputfp);
+    Free_Allocation(&main_matrix,&key_matrix);
+    fclose(outputfp);
+    return 1;
 }
-void initialize_the_array(linked_list based_array[]){
+void Matrix_reader(char *file_name,matrix *main_matrix){
+    FILE *fp=fopen(file_name, "r");
+    int i,j,count=0;
+    char delimiter[]=" \n";   /*To split the string*/
+    char *token;
+
+    char *buffer=(char*)malloc(sizeof(char)*(main_matrix->columns*4));         /*Allocating memory for reading and keep the line inside that*/
+
+    main_matrix->map=(int**)malloc(sizeof(int*)*main_matrix->rows);
+    /*first allocate rows and then each row is gonna keep one column*/
+
+    for(i=0;i<main_matrix->rows;i++){                                       /*memory allocation*/
+        main_matrix->map[i]=(int*)malloc(sizeof(int)*main_matrix->columns);
+    }
+    while (fgets(buffer,(main_matrix->columns*4),fp )!= NULL){         /*Assigning map to the 2D array value by value*/
+        token=strtok(buffer,delimiter);
+        for(i=count,j=0;j<main_matrix->columns;j++){
+            main_matrix->map[i][j]=(int)strtol(token,NULL,10);
+            token=strtok(NULL,delimiter);
+        }
+        count++;
+    }
+    fclose(fp);
+    free(buffer);
+}
+
+void Matrixes_Boundaries(char  *main_matrix,char *key_matrix,matrix *main,matrix *key){
+    char delimiter[]="x"; char *ptr;
+    char *splitter = strtok(main_matrix,delimiter);
+
+    main->rows=(strtol(splitter,&ptr,10));       /*splitting the arguments */
+    splitter=strtok(NULL,delimiter);            /*assigning the values to the 2D map*/
+
+    main->columns=strtol(splitter,&ptr,10);
+
+    key->columns=strtol(key_matrix,&ptr,10);
+    key->rows=key->columns;
+}
+
+void Free_Allocation(matrix *main_matrix,matrix *key_matrix) {
     int i;
-    for(i=0;i<maxsize;i++)
-        based_array[i].link=i+1;
-}
-void display(linked_list based_array[]){
-    int i;
-    printf("index\tname\tlink\t\n");
-    for(i=0;i<maxsize;i++){
-        printf("[%d]\t%s\t%d\n",i,based_array[i].data,based_array[i].link);
-    }
+    for (i = 0; i < main_matrix->rows; i++)
+        free(main_matrix->map[i]);
+    for (i = 0; i < key_matrix->rows; i++)
+        free(key_matrix->map[i]);
+    free(main_matrix->map);     free(key_matrix->map);
 }
 
-/*Real_array_starting_index indicates the first element's index*/
-/*Next_empty_location shows us the current empty index of the array*/
-/*Rear shows us first nothing and if we want to add an element to the middle it chase front and take fronts place*/
-/*Front first shows us the first element of the array not the array[0] actually it shows the first element in the array thah
- * can be place in also array[5] or array[7] I mean it shows the index of the first element of the array*/
-void add_next_name(char *name,linked_list based_array[],int *next_empty_location,int *real_array_starting_index){
-    int rear=-1;
-    int front=*real_array_starting_index;
-    int current_empty_location=*next_empty_location;  /*Temp means the empty location of the array index which we can insert our item*/
+void Treasure_Searcher(matrix *map_matrix,matrix *key_matrix,int row_start,int row_end,int column_start,int column_end,int remainder,FILE *output) {
+    int slider = key_matrix->columns;
+    int new_remainder,i, j, key_start, key_end,sum = 0;
+    /* if incoming remainder is 0, we have found treasure. No more calculation needed.*/
+    if(remainder==0){
 
-    strcpy(based_array[current_empty_location].data,name);
-    *next_empty_location=based_array[*next_empty_location].link;
+    } else {
+        /* Boundary check*/
+        if(remainder==1&& row_start-slider< 0){                                /* Going down in next call*/
+            new_remainder=2;
+        } else if(remainder==2 && map_matrix->rows < row_end+slider){      /* Going up in next call*/
+            new_remainder=1;
+        } else if(remainder==3&& column_end+slider > map_matrix->columns){  /* Going left in next call*/
+            new_remainder=4;
+        } else if(remainder==4 && column_start-slider < 0){                 /* Going right in next call*/
+            new_remainder=3;
+        } else {
+            /* We haven't hit boundaries.*/
+            /* Update next sub-matrix center position here.*/
+            if(remainder == 1) {
+                row_start -= slider;
+                row_end -= slider;
+            } else if(remainder == 2) {
+                row_start += slider;
+                row_end += slider;
+            }else if(remainder == 3) {
+                column_start += slider;
+                column_end += slider;
+            }else if(remainder == 4) {
+                column_start -= slider;
+                column_end -= slider;
+            }
 
-    while (front!=-1 && strcmp(based_array[front].data,name)<0){
-        rear=front;
-        front=based_array[front].link;
-    }
-    if(rear==-1){                                    /*That means there is no  node to show the current adding item*/
-        based_array[current_empty_location].link=front;               /*Inserting an element into the head of the array*/
-        *real_array_starting_index=current_empty_location; /*Changing the starting index of the real array*/
-    } else{
-        based_array[rear].link=current_empty_location;
-        based_array[current_empty_location].link=front;
-    }
-}
+            /* If incoming remainder is -1, we assume that the call is (initial) first time.*/
+            for(i=row_start,key_start=0;i<row_end;i++,key_start++) {            /*calculating the multiplication of submatrix and keymatrix*/
+                for (j = column_start, key_end = 0; j < column_end; j++, key_end++) {
+                    sum = sum + (map_matrix->map[i][j] * key_matrix->map[key_start][key_end]);
+                }
+            }
+            new_remainder=sum%5;
+            fprintf(output,"%d,%d:%d\n",(row_start+row_end)/2,(column_start+column_end)/2,sum);
+        }
 
-void delete_item(linked_list based_array[],char *name,int *real_array_starting_index,int *new_empty_location){
-    int rear=-1;
-    int front=*real_array_starting_index;
-    while (front!=-1 && strcmp(based_array[front].data,name)!=0){
-            rear=front;
-            front=based_array[front].link;
+        /* Recursive call itself.*/
+        Treasure_Searcher(map_matrix,key_matrix, row_start, row_end, column_start, column_end, new_remainder, output);
     }
-    if(front==-1){ /*So that means the list is empty*/
-        printf("You cannot delete an item from an empty list");
-        exit(123);
-    }
-    if(rear==-1){ /*Deleting an item from the head of the list*/
-        *real_array_starting_index=based_array[front].link;
-    } else {                    /*This means deleting the first element of the array*/
-        /*So the array starting moves to next element.Next element can locate in any
- * index of array but when we delete the first element ıts link shows us the next element so second element becomes first element
- * when we delete the first element*/
-        based_array[rear].link=based_array[front].link;
-    }
-    based_array[front].link=*new_empty_location; /*The item that we deleted ıts link shows the next free_location on the list */
-    *new_empty_location=front; /*The new empty location will be the deleted item index*/
-
 }
